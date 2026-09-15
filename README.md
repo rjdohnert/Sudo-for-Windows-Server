@@ -45,7 +45,7 @@ The command runs in the current console where possible. Windows may display a Us
 | --- | --- |
 | `-h`, `--help` | Display usage information. |
 | `-v`, `--version` | Display the installed version. |
-| `--validate` | Validate that the `sudo` environment can be used. |
+| `--validate` | Validate executable discovery, secure IPC creation, and the local UAC configuration. |
 
 ## Requirements
 
@@ -54,10 +54,32 @@ The command runs in the current console where possible. Windows may display a Us
 - UAC enabled when elevation is required
 - A command shell such as Command Prompt or PowerShell
 
+## Server Core
+
+`sudo` is designed to run on Windows Server 2022 and Windows Server 2025 Server Core. It uses native Windows console, process, security, and IPC APIs and does not require Desktop Experience or the Server Core App Compatibility Feature on Demand.
+
+The elevation behavior depends on the session and UAC policy:
+
+- An interactive local or console session can display the UAC consent or credential prompt when elevation is required.
+- WinRM, SSH, scheduled task, service, and other noninteractive sessions might not have an interactive secure desktop. In those sessions, prompt-based elevation can fail; start the session or process with an administrative token instead.
+- If UAC is disabled, an already elevated administrator can run commands directly, but a non-elevated process cannot acquire an elevated token through `sudo`.
+- Server security policy can change or deny elevation behavior even when UAC is enabled.
+
+Verify a Server Core installation from its console before relying on it operationally:
+
+```powershell
+sudo --validate
+sudo cmd.exe /c whoami
+sudo powershell.exe -NoProfile -Command '$p = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()); $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)'
+```
+
+The final command should print `True`.
+
 ## Notes
 
 - Administrative privileges are granted to the command being launched, not permanently to the calling shell.
 - The target command's exit code is returned by `sudo`.
+- Bare command names are resolved from Windows system directories and the machine-level `PATH`. Use an explicit path such as `.\tool.exe` for commands in the current directory or on a user-only `PATH`.
 - Place only a trusted copy of `sudo.exe` in a directory on the system `PATH`.
 
 ## Building from source
